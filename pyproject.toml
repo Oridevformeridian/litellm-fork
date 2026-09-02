@@ -68,7 +68,10 @@ proxy = [
     "azure-storage-blob>=12.28.0,<13.0",
     "mcp>=1.28.1,<2.0",
     "litellm-proxy-extras==0.4.92",
-    "litellm-enterprise==0.1.63",
+    # litellm-enterprise removed with the enterprise/ directory -- see FORK.md.
+    # The core imports it only inside try/except (upstream enforces this via
+    # tests/code_coverage_tests/check_unsafe_enterprise_import.py), so its
+    # absence is a supported state rather than a broken dependency.
     "RestrictedPython>=8.5,<9.0",
     "rich>=13.9.4,<14.0",
     "InquirerPy>=0.3.4,<1.0",
@@ -310,10 +313,12 @@ exclude-newer = "3 days"
 
 [tool.uv.sources]
 litellm-proxy-extras = { workspace = true }
-litellm-enterprise = { workspace = true }
 
 [tool.uv.workspace]
-members = ["enterprise", "litellm-proxy-extras"]
+# "enterprise" removed with the directory -- uv cannot resolve a workspace
+# member that does not exist, which failed `uv sync` outright and took every
+# Python CI job down with it.
+members = ["litellm-proxy-extras"]
 
 [tool.isort]
 profile = "black"
