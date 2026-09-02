@@ -47,11 +47,37 @@ jobs:
           # landed since, so a PR that touches no UI file still gets linted
           # against hundreds of other people's files. Diff the PR head against its
           # own merge base instead, which is exactly what this PR changed.
-          merge_base=$(gh api "repos/${{ github.repository }}/compare/${BASE_SHA}...${HEAD_SHA}?per_page=1" --jq '.merge_base_commit.sha')
-          test -n "$merge_base"
-          git fetch --no-tags --depth=1 origin "$merge_base" "$HEAD_SHA"
           : > "$RUNNER_TEMP/prettier_files.txt"
           : > "$RUNNER_TEMP/eslint_files.txt"
+
+          # Fork change: this step assumed pull_request context. On a push both
+          # BASE_SHA and HEAD_SHA are empty, the gh compare call 404s, and the
+          # job dies before linting anything. The unit-test workflow already
+          # handles this by falling back to the full suite; mirror that here.
+          if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
+            echo "Push to $GITHUB_REF_NAME: diffing against the previous commit"
+            git fetch --no-tags --depth=2 origin "$GITHUB_SHA" 2>/dev/null || true
+            if git rev-parse --verify -q "${GITHUB_SHA}^" >/dev/null; then
+              range_from="${GITHUB_SHA}^"
+              range_to="$GITHUB_SHA"
+            else
+              # Shallow or first commit: nothing to diff against, lint everything.
+              echo "No parent commit available; linting all tracked UI files"
+              git ls-files -- . > "$RUNNER_TEMP/all_files.txt"
+              range_from=""
+            fi
+          else
+            merge_base=$(gh api "repos/${{ github.repository }}/compare/${BASE_SHA}...${HEAD_SHA}?per_page=1" --jq '.merge_base_commit.sha')
+            test -n "$merge_base"
+            git fetch --no-tags --depth=1 origin "$merge_base" "$HEAD_SHA"
+            range_from="$merge_base"
+            range_to="$HEAD_SHA"
+          fi
+
+          if [ -n "${range_from:-}" ]; then
+            git diff --name-only --diff-filter=ACMR --relative "$range_from" "$range_to" -- . > "$RUNNER_TEMP/all_files.txt"
+          fi
+
           while IFS= read -r f; do
             [ -f "$f" ] || continue
             case "$f" in
@@ -61,7 +87,7 @@ jobs:
               *.json | *.css | *.scss | *.md | *.mdx | *.yml | *.yaml | *.html)
                 printf '%s\n' "$f" >> "$RUNNER_TEMP/prettier_files.txt" ;;
             esac
-          done < <(git diff --name-only --diff-filter=ACMR --relative "$merge_base" "$HEAD_SHA" -- .)
+          done < "$RUNNER_TEMP/all_files.txt"
           if [ -s "$RUNNER_TEMP/prettier_files.txt" ] || [ -s "$RUNNER_TEMP/eslint_files.txt" ]; then
             echo "has_files=true" >> "$GITHUB_OUTPUT"
           else
