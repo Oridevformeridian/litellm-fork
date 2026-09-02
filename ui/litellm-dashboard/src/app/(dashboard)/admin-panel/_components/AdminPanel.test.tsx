@@ -261,7 +261,14 @@ describe("AdminPanel", () => {
   });
 
   describe("UI Access Control", () => {
-    it("should show premium user message when non-premium user tries to access UI Access Control", async () => {
+    // This fork does not gate features on premiumUser -- see FORK.md. Upstream
+    // asserted here that a non-premium user clicking "UI Access Control" got a
+    // toast and no dialog. That gate is removed, so the assertion is inverted.
+    //
+    // The premiumUser: false fixture is kept deliberately: it is precisely the
+    // case that used to be blocked, so this test fails loudly if the gate is
+    // ever reinstated rather than passing silently against a re-locked UI.
+    it("should open UI Access Control regardless of premiumUser", async () => {
       const user = userEvent.setup();
       mockUseAuthorized.mockReturnValue({
         premiumUser: false,
@@ -274,7 +281,7 @@ describe("AdminPanel", () => {
       const uiAccessControlButton = screen.getByRole("button", { name: /ui access control/i });
       await user.click(uiAccessControlButton);
       await waitFor(() => {
-        expect(screen.queryByRole("dialog", { name: /ui access control settings/i })).not.toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: /ui access control settings/i })).toBeInTheDocument();
       });
     });
 

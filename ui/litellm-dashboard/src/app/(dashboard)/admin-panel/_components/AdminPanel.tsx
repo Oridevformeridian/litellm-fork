@@ -63,7 +63,7 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ proxySettings }) => {
-  const { premiumUser, accessToken, userId: userID } = useAuthorized();
+  const { accessToken, userId: userID } = useAuthorized();
   const form = useSSOSettingsForm("admin-panel");
   const [isAddSSOModalVisible, setIsAddSSOModalVisible] = useState(false);
   const [isInstructionsModalVisible, setIsInstructionsModalVisible] = useState(false);
@@ -104,10 +104,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ proxySettings }) => {
 
   const handleShowAllowedIPs = async () => {
     try {
-      if (premiumUser !== true) {
-        toast.fromError("This feature is only available for premium users. Please upgrade your account.");
-        return;
-      }
       if (accessToken) {
         const data = await getAllowedIPs(accessToken);
         setAllowedIPs(data && data.length > 0 ? data : [all_ip_address_allowed]);
@@ -119,9 +115,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ proxySettings }) => {
       toast.fromError(`Failed to fetch allowed IPs ${error}`);
       setAllowedIPs([all_ip_address_allowed]);
     } finally {
-      if (premiumUser === true) {
-        setIsAllowedIPModalVisible(true);
-      }
+      setIsAllowedIPModalVisible(true);
     }
   };
 
@@ -168,7 +162,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ proxySettings }) => {
   const handleAddSSOOk = () => {
     setIsAddSSOModalVisible(false);
     form.reset(emptySSOSettingsFormValues);
-    if (accessToken && premiumUser) {
+    if (accessToken) {
       checkSSOConfiguration();
     }
   };
@@ -185,21 +179,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ proxySettings }) => {
 
   const handleInstructionsOk = () => {
     setIsInstructionsModalVisible(false);
-    if (accessToken && premiumUser) {
+    if (accessToken) {
       checkSSOConfiguration();
     }
   };
 
   const handleInstructionsCancel = () => {
     setIsInstructionsModalVisible(false);
-    if (accessToken && premiumUser) {
+    if (accessToken) {
       checkSSOConfiguration();
     }
   };
 
   useEffect(() => {
     checkSSOConfiguration();
-  }, [accessToken, premiumUser, checkSSOConfiguration]);
+  }, [accessToken, checkSSOConfiguration]);
 
   const handleUIAccessControlOk = () => {
     setIsUIAccessControlModalVisible(false);
@@ -250,14 +244,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ proxySettings }) => {
                 </Button>
               </div>
               <div>
-                <Button
-                  style={{ width: "150px" }}
-                  onClick={() =>
-                    premiumUser === true
-                      ? setIsUIAccessControlModalVisible(true)
-                      : toast.fromError("Only premium users can configure UI access control")
-                  }
-                >
+                <Button style={{ width: "150px" }} onClick={() => setIsUIAccessControlModalVisible(true)}>
                   UI Access Control
                 </Button>
               </div>
