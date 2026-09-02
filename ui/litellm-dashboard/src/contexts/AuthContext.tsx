@@ -115,9 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (decoded.login_method) {
       setShowSSOBanner(decoded.login_method === "username_password");
     }
-    if (decoded.premium_user) {
-      setPremiumUser(decoded.premium_user);
-    }
+    // This fork does not meter features -- see FORK.md. Set unconditionally
+    // rather than reading the JWT claim, which nothing in the MIT core stamps.
+    setPremiumUser(true);
     if (decoded.auth_header_name) {
       setGlobalLitellmHeaderName(decoded.auth_header_name);
     }

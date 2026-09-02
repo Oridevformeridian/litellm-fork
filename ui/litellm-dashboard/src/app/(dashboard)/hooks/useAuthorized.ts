@@ -48,7 +48,12 @@ const useAuthorized = () => {
     userRole: effectiveSessionRole(decoded?.user_role),
     userRoleLabel: formatUserRole(decoded?.user_role),
     isViewOnly: isViewOnlySessionRole(decoded?.user_role),
-    premiumUser: decoded?.premium_user ?? null,
+    // This fork does not meter features -- see FORK.md. Upstream read a
+    // `premium_user` claim from the session JWT; nothing in the MIT core stamps
+    // that claim, so it fell through to null and every `premiumUser === true`
+    // check downstream failed closed. That is what left the admin panel unable
+    // to load its own SSO settings.
+    premiumUser: true,
     disabledPersonalKeyCreation: decoded?.disabled_non_admin_personal_key_creation ?? null,
     showSSOBanner: decoded?.login_method === "username_password",
   };

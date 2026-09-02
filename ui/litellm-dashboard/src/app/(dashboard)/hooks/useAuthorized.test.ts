@@ -161,6 +161,52 @@ describe("useAuthorized", () => {
     expect(clearTokenCookiesMock).not.toHaveBeenCalled();
   });
 
+  // This fork does not meter features (see FORK.md). Upstream derived
+  // premiumUser from a `premium_user` JWT claim and fell back to null when it
+  // was absent -- which is every session here, since nothing in the MIT core
+  // stamps that claim. The result was that `premiumUser === true` checks failed
+  // closed and the admin panel would not load its own SSO settings.
+  //
+  // These cases pin the fork's behaviour: premiumUser is true regardless of the
+  // claim. They exist so that reinstating the gate fails the suite loudly
+  // instead of silently re-locking the UI.
+  it.each([
+    ["the claim is false", { premium_user: false }],
+    ["the claim is absent", {}],
+    ["the claim is null", { premium_user: null }],
+  ])("should report premiumUser as true when %s", async (_label, premiumClaim) => {
+    getUiConfigMock.mockResolvedValue({
+      server_root_path: "/",
+      proxy_base_url: null,
+      auto_redirect_to_sso: false,
+      admin_ui_disabled: false,
+      sso_configured: false,
+    });
+
+    const decodedPayload = {
+      key: "api-key-123",
+      user_id: "user-1",
+      user_email: "user@example.com",
+      user_role: "proxy_admin",
+      login_method: "username_password",
+      ...premiumClaim,
+    };
+
+    decodeTokenMock.mockReturnValue(decodedPayload);
+    checkTokenValidityMock.mockReturnValue(true);
+
+    const token = createJwt(decodedPayload);
+    document.cookie = `token=${token}; path=/;`;
+
+    const { result } = renderHook(() => useAuthorized(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.token).toBe(token);
+    });
+
+    expect(result.current.premiumUser).toBe(true);
+  });
+
   it("should present proxy_admin_viewer as Admin while flagging it view-only", async () => {
     getUiConfigMock.mockResolvedValue({
       server_root_path: "/",
