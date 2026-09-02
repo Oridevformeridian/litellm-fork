@@ -10,6 +10,11 @@ on:
       - litellm_internal_staging
       - litellm_oss_staging
       - "litellm_**"
+  # Fork change: upstream gated this on pull_request only, so it never fires on
+  # a fork where work lands directly on the default branch.
+  push:
+    branches:
+      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
