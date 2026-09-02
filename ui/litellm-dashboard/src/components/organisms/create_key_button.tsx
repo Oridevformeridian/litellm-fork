@@ -26,6 +26,7 @@ import { ChevronDown, Info } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { type Control, useForm, useWatch, type UseFormSetValue } from "react-hook-form";
 import { rolesWithWriteAccess } from "../../utils/roles";
+import { canUserEditGuardrails } from "../../utils/canUserEditGuardrails";
 import AgentSelector from "../agent_management/AgentSelector";
 import AccessGroupSelector from "../common_components/AccessGroupSelector";
 import BudgetDurationDropdown from "../common_components/budget_duration_dropdown";
@@ -213,7 +214,13 @@ export const fetchUserModels = async (
  */
 const CreateKey: React.FC<CreateKeyProps> = ({ team, teams, data, addKey, autoOpenCreate, prefillData }) => {
   const { accessToken, userId: userID, userRole, premiumUser } = useAuthorized();
-  const canEditGuardrails = premiumUser || (userRole != null && rolesWithWriteAccess.includes(userRole));
+  // Upstream OR'd a paywall onto a genuine authorisation check:
+  //   premiumUser || (userRole != null && rolesWithWriteAccess.includes(userRole))
+  // Since this fork does not meter features, premiumUser is always true, which
+  // made the whole expression constant and silently bypassed the role check --
+  // a view-only user could edit guardrails. Dropping the premium bypass and
+  // keeping the role restriction, which is the part that was ever real.
+  const canEditGuardrails = canUserEditGuardrails(userRole);
   const canViewPolicies = useCan("viewPolicies");
   const canViewPrompts = useCan("viewPrompts");
   const { data: organizations, isLoading: isOrganizationsLoading } = useOrganizations();
@@ -1291,23 +1298,14 @@ const CreateKey: React.FC<CreateKeyProps> = ({ team, teams, data, addKey, autoOp
                           }
                           name="policies"
                           className="mt-4"
-                          help={
-                            premiumUser
-                              ? "Select existing policies or enter new ones"
-                              : "Premium feature - Upgrade to set policies by key"
-                          }
+                          help="Select existing policies or enter new ones"
                         >
                           {(control) => (
                             <TagsInput
                               id={control.id}
                               value={(control.value as string[] | undefined) ?? []}
                               onValueChange={control.onChange}
-                              disabled={!premiumUser}
-                              placeholder={
-                                !premiumUser
-                                  ? "Premium feature - Upgrade to set policies by key"
-                                  : "Select or enter policies"
-                              }
+                              placeholder="Select or enter policies"
                               options={policiesList.map((name) => ({ value: name, label: name }))}
                             />
                           )}
@@ -1332,23 +1330,14 @@ const CreateKey: React.FC<CreateKeyProps> = ({ team, teams, data, addKey, autoOp
                           }
                           name="prompts"
                           className="mt-4"
-                          help={
-                            premiumUser
-                              ? "Select existing prompts or enter new ones"
-                              : "Premium feature - Upgrade to set prompts by key"
-                          }
+                          help="Select existing prompts or enter new ones"
                         >
                           {(control) => (
                             <TagsInput
                               id={control.id}
                               value={(control.value as string[] | undefined) ?? []}
                               onValueChange={control.onChange}
-                              disabled={!premiumUser}
-                              placeholder={
-                                !premiumUser
-                                  ? "Premium feature - Upgrade to set prompts by key"
-                                  : "Select or enter prompts"
-                              }
+                              placeholder="Select or enter prompts"
                               options={promptsList.map((name) => ({ value: name, label: name }))}
                             />
                           )}
@@ -1393,23 +1382,14 @@ const CreateKey: React.FC<CreateKeyProps> = ({ team, teams, data, addKey, autoOp
                         }
                         name="allowed_passthrough_routes"
                         className="mt-4"
-                        help={
-                          premiumUser
-                            ? "Select existing pass through routes or enter new ones"
-                            : "Premium feature - Upgrade to set pass through routes by key"
-                        }
+                        help="Select existing pass through routes or enter new ones"
                       >
                         {(control) => (
                           <PassThroughRoutesSelector
                             value={control.value as string[] | undefined}
                             onChange={control.onChange}
                             accessToken={accessToken}
-                            placeholder={
-                              !premiumUser
-                                ? "Premium feature - Upgrade to set pass through routes by key"
-                                : "Select or enter pass through routes"
-                            }
-                            disabled={!premiumUser}
+                            placeholder="Select or enter pass through routes"
                             teamId={selectedCreateKeyTeam ? selectedCreateKeyTeam.team_id : null}
                           />
                         )}
@@ -1554,61 +1534,23 @@ const CreateKey: React.FC<CreateKeyProps> = ({ team, teams, data, addKey, autoOp
                         </CollapsibleContent>
                       </Collapsible>
 
-                      {premiumUser ? (
-                        <Collapsible className="mt-4 mb-4 overflow-hidden rounded-lg border">
-                          <CollapsibleTrigger className={SECTION_HEADER_CLASS}>
-                            <b>Logging Settings</b>
-                            <ChevronDown className={SECTION_CHEVRON_CLASS} />
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="px-4 pb-3">
-                            <div className="mt-4">
-                              <PremiumLoggingSettings
-                                value={loggingSettings}
-                                onChange={setLoggingSettings}
-                                premiumUser={true}
-                                disabledCallbacks={disabledCallbacks}
-                                onDisabledCallbacksChange={setDisabledCallbacks}
-                              />
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      ) : (
-                        <SimpleTooltip
-                          className="w-full"
-                          content={
-                            <span>
-                              Key-level logging settings is an enterprise feature, get in touch -
-                              <a href="https://www.litellm.ai/enterprise" target="_blank">
-                                https://www.litellm.ai/enterprise
-                              </a>
-                            </span>
-                          }
-                          side="top"
-                        >
-                          <div style={{ position: "relative" }}>
-                            <div style={{ opacity: 0.5 }}>
-                              <Collapsible className="mt-4 mb-4 overflow-hidden rounded-lg border">
-                                <CollapsibleTrigger className={SECTION_HEADER_CLASS}>
-                                  <b>Logging Settings</b>
-                                  <ChevronDown className={SECTION_CHEVRON_CLASS} />
-                                </CollapsibleTrigger>
-                                <CollapsibleContent className="px-4 pb-3">
-                                  <div className="mt-4">
-                                    <PremiumLoggingSettings
-                                      value={loggingSettings}
-                                      onChange={setLoggingSettings}
-                                      premiumUser={false}
-                                      disabledCallbacks={disabledCallbacks}
-                                      onDisabledCallbacksChange={setDisabledCallbacks}
-                                    />
-                                  </div>
-                                </CollapsibleContent>
-                              </Collapsible>
-                            </div>
-                            <div style={{ position: "absolute", inset: 0, cursor: "not-allowed" }} />
+                      <Collapsible className="mt-4 mb-4 overflow-hidden rounded-lg border">
+                        <CollapsibleTrigger className={SECTION_HEADER_CLASS}>
+                          <b>Logging Settings</b>
+                          <ChevronDown className={SECTION_CHEVRON_CLASS} />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="px-4 pb-3">
+                          <div className="mt-4">
+                            <PremiumLoggingSettings
+                              value={loggingSettings}
+                              onChange={setLoggingSettings}
+                              premiumUser={true}
+                              disabledCallbacks={disabledCallbacks}
+                              onDisabledCallbacksChange={setDisabledCallbacks}
+                            />
                           </div>
-                        </SimpleTooltip>
-                      )}
+                        </CollapsibleContent>
+                      </Collapsible>
 
                       <Collapsible
                         key={`router-settings-accordion-${routerSettingsKey}`}

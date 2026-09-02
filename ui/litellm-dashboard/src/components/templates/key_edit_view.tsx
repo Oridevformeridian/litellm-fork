@@ -14,7 +14,8 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { FormField } from "@/components/shared/form/FormField";
 import React, { useEffect, useRef, useState } from "react";
 import { hasCapability } from "../../utils/capabilities";
-import { isProxyAdminRole, rolesWithWriteAccess } from "../../utils/roles";
+import { isProxyAdminRole } from "../../utils/roles";
+import { canUserEditGuardrails } from "../../utils/canUserEditGuardrails";
 import AgentSelector from "../agent_management/AgentSelector";
 import AccessGroupSelector from "../common_components/AccessGroupSelector";
 import BudgetDurationDropdown from "../common_components/budget_duration_dropdown";
@@ -88,7 +89,11 @@ export function KeyEditView({
   userRole,
   premiumUser = false,
 }: KeyEditViewProps) {
-  const canEditGuardrails = premiumUser || (userRole != null && rolesWithWriteAccess.includes(userRole));
+  // Upstream OR'd a paywall onto a real authorisation check, so premiumUser
+  // being true made the whole expression constant and bypassed the role
+  // restriction. Keeping the role check, dropping the premium bypass.
+  // See create_key_button.tsx and key_info_view.tsx for the same change.
+  const canEditGuardrails = canUserEditGuardrails(userRole);
   const canViewPolicies = hasCapability(userRole, "viewPolicies");
   const canViewPrompts = hasCapability(userRole, "viewPrompts");
   const canEditEstimates = userRole != null && isProxyAdminRole(userRole);

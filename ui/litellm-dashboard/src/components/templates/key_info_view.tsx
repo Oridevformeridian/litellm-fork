@@ -17,7 +17,8 @@ import { BadgeLink } from "@/components/shared/BadgeLink";
 import { KeyInfoHeader } from "./KeyInfoHeader";
 import KeySavingsTab from "./KeySavingsTab";
 import { useEffect, useState } from "react";
-import { isProxyAdminRole, isUserTeamAdminForSingleTeam, rolesWithWriteAccess } from "../../utils/roles";
+import { isProxyAdminRole, isUserTeamAdminForSingleTeam } from "../../utils/roles";
+import { canUserEditGuardrails } from "../../utils/canUserEditGuardrails";
 import { mapDisplayToInternalNames, mapInternalToDisplayNames } from "../callback_info_helpers";
 import AutoRotationView from "../common_components/AutoRotationView";
 import DeleteResourceModal from "../common_components/DeleteResourceModal";
@@ -82,7 +83,11 @@ export default function KeyInfoView({
 }: KeyInfoViewProps) {
   const { accessToken, userId: userID, userRole, premiumUser } = useAuthorized();
   const queryClient = useQueryClient();
-  const canEditGuardrails = premiumUser || (userRole != null && rolesWithWriteAccess.includes(userRole));
+  // Upstream OR'd a paywall onto a real authorisation check, so premiumUser
+  // being true made the whole expression constant and bypassed the role
+  // restriction. Keeping the role check, dropping the premium bypass.
+  // See create_key_button.tsx and key_edit_view.tsx for the same change.
+  const canEditGuardrails = canUserEditGuardrails(userRole);
   const { teams: teamsData } = useTeams();
   const { data: organizations } = useOrganizations();
   const { data: projects } = useProjects();
